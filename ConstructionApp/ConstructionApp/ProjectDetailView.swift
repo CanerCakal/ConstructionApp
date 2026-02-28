@@ -13,6 +13,8 @@ struct ProjectDetailView: View {
     @Environment(\.modelContext) private var context
     @Bindable var project: Project
     
+    @State private var pdfURL: URL?
+    @State private var showShareSheet = false
     @State private var materialName: String = ""
     @State private var unit: String = ""
     @State private var usageRate: String = ""
@@ -66,6 +68,19 @@ struct ProjectDetailView: View {
             .padding()
         }
         .navigationTitle(project.name)
+        .toolbar {
+            Button("PDF") {
+                if let url = PDFService.generatePDF(for: project) {
+                    pdfURL = url
+                    showShareSheet = true
+                }
+            }
+        }
+        .sheet(isPresented: $showShareSheet) {
+            if let url = pdfURL {
+                ShareSheet(activityItems: [url])
+            }
+        }
     }
     
     func addMaterial() {
