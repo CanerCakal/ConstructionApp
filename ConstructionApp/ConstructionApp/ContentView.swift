@@ -7,7 +7,7 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             if authViewModel.isLoggedIn {
-                HomeView()
+                HomeView(authViewModel: authViewModel)
             } else {
                 LoginView(viewModel: authViewModel)
             }
@@ -15,6 +15,3 @@ struct ContentView: View {
     }
 }
 
-#Preview {
-    ContentView()
-}

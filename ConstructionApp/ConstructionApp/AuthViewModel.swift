@@ -24,4 +24,10 @@ class AuthViewModel: ObservableObject {
             errorMessage = "Kullanıcı adı veya şifre yanlış!"
         }
     }
+    
+    func logOut() {
+        email = ""
+        password = ""
+        isLoggedIn = false
+    }
 }
