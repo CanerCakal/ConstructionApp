@@ -24,4 +24,16 @@ class Project {
         self.area = area
         self.createdAt = Date()
     }
+    
+    var totalCost: Double {
+        materials.reduce(0) { total, material in
+            let requiredAmount = area * material.userPerSquareMeter
+            let materialCost = requiredAmount * material.pricePerUnit
+            return total + materialCost
+        }
+    }
+    
+    var totalRequiredMaterials: Int {
+        materials.count
+    }
 }

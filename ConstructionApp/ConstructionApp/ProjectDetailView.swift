@@ -20,6 +20,17 @@ struct ProjectDetailView: View {
     
     var body: some View {
         VStack {
+            
+            VStack(spacing: 8) {
+                Text("Toplam Maliyet")
+                    .font(.headline)
+                Text("\(project.totalCost, specifier: "%.2f") TL")
+                    .font(.title)
+                    .bold()
+                    .foregroundColor(.green)
+            }
+            .padding()
+            
             List {
                 ForEach(project.materials) { material in
                     VStack(alignment: .leading) {
