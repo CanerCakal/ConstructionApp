@@ -15,6 +15,9 @@ class Project {
     var area: Double
     var createdAt: Date
     
+    @Relationship(deleteRule: .cascade)
+    var materials: [Material] = []
+    
     init(name: String, area: Double) {
         self.id = UUID()
         self.name = name

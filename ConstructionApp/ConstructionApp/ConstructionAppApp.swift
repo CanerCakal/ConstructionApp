@@ -14,6 +14,6 @@ struct ConstructionAppApp: App {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: Project.self)
+        .modelContainer(for: [Project.self, Material.self])
     }
 }

@@ -20,7 +20,7 @@ struct HomeView: View {
         VStack {
             List {
                 ForEach(projects) { project in
-                    VStack(alignment: .leading) {
+                    NavigationLink(destination: ProjectDetailView(project: project)) {
                         Text(project.name)
                             .font(.headline)
                         Text("Alan: \(project.area, specifier: "%.2f") m2")
