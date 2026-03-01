@@ -23,70 +23,81 @@ struct HomeView: View {
     }
     
     var body: some View {
-        VStack {
-            VStack(spacing: 8) {
-                Text("Toplam Proje: \(projects.count)")
-                    .font(.headline)
-                
-                Text("Genel Maaliyet")
-                
-                Text("\(totalPortfolioCost, specifier: "%.2f") TL")
-                    .font(.title2)
-                    .bold()
-                    .foregroundColor(.blue)
-            }
-            .padding()
-            
-            Divider()
-            
-            List {
-                ForEach(projects) { project in
-                    NavigationLink(destination: ProjectDetailView(project: project)) {
-                        VStack(alignment: .leading) {
-                            Text(project.name)
-                                .font(.headline)
-                            Text(project.name)
-                                .font(.headline)
-                            Text("Alan: \(project.area, specifier: "%.2f") m2")
-                            Text("Toplam: \(project.totalCost, specifier: "%.2f") TL")
-                                .foregroundColor(.green)
+        NavigationView {
+            VStack(spacing: 20) {
+                VStack(spacing: 16) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Toplam Proje")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                            Text("\(projects.count)")
+                                .font(.title)
+                                .bold()
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 8) {
+                            Text("Genel Maaliyet")
+                                .font(.subheadline)
+                                .foregroundColor(.gray)
+                            Text("\(totalPortfolioCost, specifier: "%.2f") TL")
+                                .font(.title2)
+                                .bold()
+                                .foregroundColor(.blue)
                         }
                     }
-                }
-                .onDelete(perform: deleteProject)
-            }
-            VStack(spacing: 10) {
-                TextField("Proje Adı", text: $newProjectName)
-                    .textFieldStyle(.roundedBorder)
+                }.padding()
+                    .background(RoundedRectangle(cornerRadius: 20) .fill(Color(.systemBackground)) .shadow(color: .black.opacity(0.1), radius: 10)) .padding(.horizontal)
                 
-                TextField("Alan(m2)", text: $newProjectArea)
-                    .textFieldStyle(.roundedBorder)
-                    .keyboardType(.decimalPad)
+                List {
+                    ForEach(projects) { project in
+                        NavigationLink(destination: ProjectDetailView(project: project)) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(project.name)
+                                    .font(.headline)
+                                HStack {
+                                    Text("\(project.area, specifier: "%.2f") m2")
+                                        .foregroundColor(.gray)
+                                    Spacer()
+                                    Text("\(project.totalCost, specifier: "%.2f") TL")
+                                        .bold()
+                                        .foregroundColor(.green)
+                                }
+                            }.padding()
+                                .background(RoundedRectangle(cornerRadius: 16) .fill(Color(.secondarySystemBackground)))
+                        }.listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                    }.onDelete(perform: deleteProject)
+                }.listStyle(.plain)
                 
-                Button("Proje Ekle") {
-                    addProject()
+                VStack(spacing: 10) {
+                    TextField("Proje Adı", text: $newProjectName)
+                        .textFieldStyle(.roundedBorder)
+                    TextField("Alan(m2)", text: $newProjectArea)
+                        .textFieldStyle(.roundedBorder)
+                        .keyboardType(.decimalPad)
+                    Button("Proje Ekle") {
+                        addProject()
+                    }.buttonStyle(.borderedProminent)
+                    Button("Sunucu Test") {
+                        Task {
+                            do {
+                                let result = try await NetworkManager.shared.fetcSampleData()
+                                print(result)
+                            } catch {
+                                print("Hata:", error.localizedDescription)
+                            }
+                        }
+                    }.buttonStyle(.bordered)
+                }.padding()
+            }.navigationTitle("Dashboard")
+                .navigationBarTitleDisplayMode(.large)
+                .toolbar {
+                    Button("Çıkış") {
+                        authViewModel.logOut()
+                    }
                 }
-                .buttonStyle(.borderedProminent)
-            }
-            .padding()
         }
-        .navigationTitle("Projeler")
-        .toolbar {
-            Button("Çıkış") {
-                authViewModel.logOut()
-            }
-        }
-        Button("Sunucu Test") {
-            Task {
-                do {
-                    let result = try await NetworkManager.shared.fetcSampleData()
-                    print(result)
-                } catch {
-                    print("Hata:", error.localizedDescription)
-                }
-            }
-        }
-        .buttonStyle(.bordered)
     }
     
     func addProject() {
