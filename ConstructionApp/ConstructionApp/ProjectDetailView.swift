@@ -30,8 +30,14 @@ struct ProjectDetailView: View {
                     .font(.title)
                     .bold()
                     .foregroundColor(.green)
-            }
-            .padding()
+            }.padding()
+            
+            VStack {
+                Text("AI Analizi")
+                    .font(.headline)
+                Text(AIService.shared.analyzeProject(project: project))
+                    .foregroundColor(.purple)
+            }.padding()
             
             List {
                 ForEach(project.materials) { material in
@@ -48,6 +54,7 @@ struct ProjectDetailView: View {
                     }
                 }
             }
+            
             VStack(spacing: 10) {
                 TextField("Malzeme Adı", text: $materialName)
                     .textFieldStyle(.roundedBorder)
@@ -59,13 +66,12 @@ struct ProjectDetailView: View {
                 TextField("Birim Fiyat", text: $price)
                     .textFieldStyle(.roundedBorder)
                     .keyboardType(.decimalPad)
-                
                 Button("Malzeme Ekle") {
                     addMaterial()
                 }
                 .buttonStyle(.borderedProminent)
-            }
-            .padding()
+            }.padding()
+            
         }
         .navigationTitle(project.name)
         .toolbar {

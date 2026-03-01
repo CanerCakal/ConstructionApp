@@ -76,6 +76,17 @@ struct HomeView: View {
                 authViewModel.logOut()
             }
         }
+        Button("Sunucu Test") {
+            Task {
+                do {
+                    let result = try await NetworkManager.shared.fetcSampleData()
+                    print(result)
+                } catch {
+                    print("Hata:", error.localizedDescription)
+                }
+            }
+        }
+        .buttonStyle(.bordered)
     }
     
     func addProject() {
