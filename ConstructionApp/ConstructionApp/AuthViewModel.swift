@@ -30,6 +30,8 @@ class AuthViewModel: ObservableObject {
     @Published var isLoggedIn: Bool = false
     @Published var errorMessage: String = ""
     
+    private let sessionKey = "loggedInUser"
+    
     private func generateSalt() -> String {
         UUID().uuidString
     }
@@ -96,6 +98,7 @@ class AuthViewModel: ObservableObject {
             
             if hashedInput == user.passwordHash {
                 isLoggedIn = true
+                KeychainManager.save(key: sessionKey, value: user.email)
                 errorMessage = ""
                 failedAttempts = 0
             } else {
@@ -122,5 +125,13 @@ class AuthViewModel: ObservableObject {
         email = ""
         password = ""
         isLoggedIn = false
+        KeychainManager.delete(key: sessionKey)
+    }
+    
+    func checkSession() {
+        if let savedUser = KeychainManager.read(key: sessionKey) {
+            print("Session bulundu: \(savedUser)")
+            isLoggedIn = true
+        }
     }
 }

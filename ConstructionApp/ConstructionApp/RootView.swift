@@ -12,6 +12,7 @@ struct RootView: View {
             .onAppear {
                 authViewModel.setContext(context)
                 authViewModel.createDefaultAdminIfNeeded()
+                authViewModel.checkSession()
             }
     }
 }
