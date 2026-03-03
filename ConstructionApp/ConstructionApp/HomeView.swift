@@ -10,7 +10,7 @@ import SwiftData
 
 struct HomeView: View {
     
-    @ObservedObject var authViewModel: AuthViewModel
+    @EnvironmentObject var authViewModel: AuthViewModel
     
     @Environment(\.modelContext) private var context
     @Query private var projects: [Project]

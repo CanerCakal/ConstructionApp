@@ -12,8 +12,8 @@ import SwiftData
 struct ConstructionAppApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
         }
-        .modelContainer(for: [Project.self, Material.self])
+        .modelContainer(for: [Project.self, Material.self, User.self])
     }
 }

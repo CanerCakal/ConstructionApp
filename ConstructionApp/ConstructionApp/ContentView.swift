@@ -2,16 +2,17 @@ import SwiftUI
 
 struct ContentView: View {
     
-    @StateObject private var authViewModel = AuthViewModel()
+    @EnvironmentObject var authViewModel: AuthViewModel
     
     var body: some View {
         NavigationStack {
             if authViewModel.isLoggedIn {
-                HomeView(authViewModel: authViewModel)
+                HomeView()
             } else {
-                LoginView(viewModel: authViewModel)
+                LoginView()
             }
         }
     }
 }
+
 

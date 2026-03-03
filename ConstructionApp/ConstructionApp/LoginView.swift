@@ -9,7 +9,8 @@ import SwiftUI
 
 struct LoginView: View {
     
-    @ObservedObject var viewModel: AuthViewModel
+    @EnvironmentObject var authViewModel: AuthViewModel
+    
     
     var body: some View {
         VStack(spacing: 20) {
@@ -18,20 +19,20 @@ struct LoginView: View {
                 .font(.largeTitle)
                 .bold()
             
-            TextField("Email", text: $viewModel.email)
+            TextField("Email", text: $authViewModel.email)
                 .textFieldStyle(.roundedBorder)
                 .autocapitalization(.none)
             
-            SecureField("Password", text: $viewModel.password)
+            SecureField("Password", text: $authViewModel.password)
                 .textFieldStyle(.roundedBorder)
             
-            if !viewModel.errorMessage.isEmpty {
-                Text(viewModel.errorMessage)
+            if !authViewModel.errorMessage.isEmpty {
+                Text(authViewModel.errorMessage)
                     .foregroundStyle(.red)
             }
             
             Button("Giriş Yap") {
-                viewModel.login()
+                authViewModel.login()
             }
             .buttonStyle(.borderedProminent)
         }

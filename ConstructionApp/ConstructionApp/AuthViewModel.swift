@@ -13,8 +13,11 @@ import SwiftData
 
 class AuthViewModel: ObservableObject {
     
-    private var context: ModelContext
-    init(context: ModelContext) {
+    var context: ModelContext?
+    
+    init() {}
+    
+    func setContext(_ context: ModelContext) {
         self.context = context
     }
     
@@ -45,13 +48,31 @@ class AuthViewModel: ObservableObject {
         let hashedPassword = hashPassword(password, salt: salt)
         
         let newUser = User(email: email, passwordHash: hashedPassword, salt: salt)
-        context.insert(newUser)
+        context?.insert(newUser)
         
         do {
-            try context.save()
+            try context?.save()
             errorMessage = "Kayıt Başarılı"
         } catch {
             errorMessage = "Kayıt sırasında hata oluştu!!"
+        }
+    }
+    
+    func createDefaultAdminIfNeeded() {
+        guard let context = context else { return }
+        
+        let descriptor = FetchDescriptor<User>()
+        
+        if let users = try? context.fetch(descriptor), users.isEmpty {
+            let salt = generateSalt()
+            let hash = hashPassword("1234", salt: salt)
+            
+            let admin = User(email: "admin@test.com",
+                             passwordHash: hash,
+                             salt: salt)
+            
+            context.insert(admin)
+            try? context.save()
         }
     }
     
@@ -66,8 +87,8 @@ class AuthViewModel: ObservableObject {
         
         do {
             
-            let fetchedUsers = try context.fetch(descriptor)
-            guard let user = fetchedUsers.first else {
+            let fetchedUsers = try context?.fetch(descriptor)
+            guard let user = fetchedUsers?.first else {
                 errorMessage = "Kullanıcı bulunamadı"
                 return
             }
