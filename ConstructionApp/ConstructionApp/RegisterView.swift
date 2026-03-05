@@ -35,8 +35,8 @@ struct RegisterView: View {
                 Text(localErrorMessage)
                     .foregroundStyle(.red)
                     .font(.caption)
-            } else if !authViewModel.errorMessage.isEmpty {
-                Text(authViewModel.errorMessage)
+            } else if !authViewModel.errorMesage.isEmpty {
+                Text(authViewModel.errorMesage)
                     .foregroundStyle(.red)
                     .font(.caption)
             }
@@ -69,7 +69,7 @@ struct RegisterView: View {
         authViewModel.register()
         
         // Kayıt başarılıysa bir önceki ekrana (Giriş ekranına) dön
-        if authViewModel.errorMessage == "Kayıt Başarılı" {
+        if authViewModel.errorMesage == "Kayıt Başarılı" {
             dismiss()
         }
     }

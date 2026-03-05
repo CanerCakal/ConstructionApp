@@ -1,19 +1,20 @@
-//
-//  AuthViewModel.swift
-//  ConstructionApp
-//
-//  Created by Caner Çakal on 27.02.2026.
-//
-
 import Foundation
+import Combine
 import SwiftUI
-internal import Combine
-import CryptoKit
 import SwiftData
 
 class AuthViewModel: ObservableObject {
     
     var context: ModelContext?
+    
+    @Published var email: String = ""
+    @Published var password: String = ""
+    @Published var isLoggedIn: Bool = false
+    @Published var errorMesage: String = ""
+    
+    // Kilitlenme mekanizması için
+    @Published var failedAttempts: Int = 0
+    @Published var lockUntil: Date?
     
     init() {}
     
@@ -21,106 +22,94 @@ class AuthViewModel: ObservableObject {
         self.context = context
     }
     
-    @Query private var users: [User]
-    
-    @Published var failedAttempts = 0
-    @Published var lockUntil: Date?
-    @Published var email: String = ""
-    @Published var password: String = ""
-    @Published var isLoggedIn: Bool = false
-    @Published var errorMessage: String = ""
-    
-    private let sessionKey = "loggedInUser"
-    
-    private func generateSalt() -> String {
-        UUID().uuidString
-    }
-    
-    private func hashPassword( _ password: String, salt: String) -> String {
-        let combined = password + salt
-        let data = Data(combined.utf8)
-        let hashed = SHA256.hash(data: data)
-        return hashed.map {
-            String(format: "02x", $0)
-        }.joined()
-    }
-    
-    func register() {
-        errorMessage = ""
-    
-        let salt = generateSalt()
-        let hashedPassword = hashPassword(password, salt: salt)
-        
-        let newUser = User(email: email, passwordHash: hashedPassword, salt: salt)
-        context?.insert(newUser)
-        
-        do {
-            try context?.save()
-            errorMessage = "Kayıt Başarılı"
-        } catch {
-            errorMessage = "Kayıt sırasında hata oluştu!!"
-        }
-    }
-    
-    func createDefaultAdminIfNeeded() {
+    // Uygulama ilk açıldığında çalışan test hesabı oluşturucu
+    func createdDefaultAdminIfNeded() {
         guard let context = context else { return }
-        
         let descriptor = FetchDescriptor<User>()
         
-        if let users = try? context.fetch(descriptor), users.isEmpty {
-            let salt = generateSalt()
-            let hash = hashPassword("1234", salt: salt)
-            
-            let admin = User(email: "admin@test.com",
-                             passwordHash: hash,
-                             salt: salt)
-            
+        if let user = try? context.fetch(descriptor), user.isEmpty {
+            let admin = User(email: "admin@test.com", passwordHash: "1234", salt: "")
             context.insert(admin)
             try? context.save()
+            print("Admin hesabı oluşturuldu")
         }
     }
-    
-    func login() {
-        errorMessage = ""
+    //MARK: Kayıt olma fonksiyonu
+    func register() {
+        errorMesage = ""
         
-        if let lockUntil = lockUntil, Date() < lockUntil {
-            errorMessage = "Çok fazla deneme yaptınız. Lütfen bekleyiniz."
+        guard let context = context else {
+            errorMesage = "Veritabanı bağlantısı yok"
             return
         }
         
-        let descriptor = FetchDescriptor<User>(predicate: #Predicate { $0.email == email })
+        let safeEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         
         do {
+            // E-posta zaten kayıtlı mı diye manuel kontrol ediyoruz
+            let descriptor = FetchDescriptor<User>()
+            let allUsers = try context.fetch(descriptor)
             
-            let fetchedUsers = try context?.fetch(descriptor)
-            guard let user = fetchedUsers?.first else {
-                errorMessage = "Kullanıcı bulunamadı"
+            if allUsers.contains(where: { $0.email == safeEmail }) {
+                errorMesage = "Bu e-posta adresi zaten kullanılıyor."
                 return
             }
-            let hashedInput = hashPassword(password, salt: user.salt)
             
-            if hashedInput == user.passwordHash {
-                isLoggedIn = true
-                KeychainManager.save(key: sessionKey, value: user.email)
-                errorMessage = ""
-                failedAttempts = 0
-            } else {
-                handleFailedAttempt()
-            }
+            let newUser = User(email: safeEmail, passwordHash: password, salt: "")
+            context.insert(newUser)
+            try context.save()
             
+            errorMesage = "Kayıt başarılı"
+            print("Kayıt edilen kullanıcı: \(safeEmail) - Şifre: \(password)")
         } catch {
-            errorMessage = "Giriş sırasında hata oluştu"
+            errorMesage = "Kayıt sırasında hata oluştu."
         }
     }
     
-    private func handleFailedAttempt() {
-        failedAttempts += 1
+    //MARK: Giriş yapma fonksiyonu
+    func login() {
+        errorMesage = ""
         
+        // 30 saniye kilidi devrede mi?
+        if let lockUntil = lockUntil, Date() < lockUntil {
+            errorMesage = "Çok fazla deneme yaptınız. Lütfen bekleyiniz."
+            return
+        }
+        
+        guard let context = context else {
+            errorMesage = "Veritabanı bağlantısı yok."
+            return
+        }
+        
+        let safeEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let descriptor = FetchDescriptor<User>()
+        
+        do {
+            let allUsers = try context.fetch(descriptor)
+            guard let user = allUsers.first(where: { $0.email == safeEmail }) else {
+                handleFailedAttempts(message: "Kullanıcı Bulunamadı")
+                return
+            }
+            if user.passwordHash == password {
+                isLoggedIn = true
+                errorMesage = ""
+                failedAttempts = 0
+                print("Başarıyla giriş yapıldı \(safeEmail)")
+            } else {
+                handleFailedAttempts(message: "Şifre yanlış")
+            }
+        } catch {
+            errorMesage = "Giriş sırasında bir hata oluştu"
+        }
+    }
+    // Hatalı girişleri yöneten fonksiyon
+    func handleFailedAttempts(message: String) {
+        failedAttempts += 1
         if failedAttempts >= 5 {
-            lockUntil = Date().addingTimeInterval(10)
-            errorMessage = "5 Hatalı deneme. Lütfen 30 saniye bekleyiniz"
+            lockUntil = Date().addingTimeInterval(30)
+            errorMesage = "5 hatalı deneme yaptınız. Lütfen bekleyiniz"
         } else {
-            errorMessage = "Şifre yanlış"
+            errorMesage = message
         }
     }
     
@@ -128,13 +117,10 @@ class AuthViewModel: ObservableObject {
         email = ""
         password = ""
         isLoggedIn = false
-        KeychainManager.delete(key: sessionKey)
+        failedAttempts = 0
     }
     
     func checkSession() {
-        if let savedUser = KeychainManager.read(key: sessionKey) {
-            print("Session bulundu: \(savedUser)")
-            isLoggedIn = true
-        }
+        
     }
 }
