@@ -46,6 +46,8 @@ class AuthViewModel: ObservableObject {
     }
     
     func register() {
+        errorMessage = ""
+    
         let salt = generateSalt()
         let hashedPassword = hashPassword(password, salt: salt)
         
@@ -79,6 +81,7 @@ class AuthViewModel: ObservableObject {
     }
     
     func login() {
+        errorMessage = ""
         
         if let lockUntil = lockUntil, Date() < lockUntil {
             errorMessage = "Çok fazla deneme yaptınız. Lütfen bekleyiniz."

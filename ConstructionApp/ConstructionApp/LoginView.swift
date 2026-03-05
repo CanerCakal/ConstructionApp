@@ -15,6 +15,8 @@ struct LoginView: View {
     var body: some View {
         VStack(spacing: 20) {
             
+            Spacer() // İçeriği ortalamak için
+            
             Text("Construction Manager")
                 .font(.largeTitle)
                 .bold()
@@ -22,6 +24,7 @@ struct LoginView: View {
             TextField("Email", text: $authViewModel.email)
                 .textFieldStyle(.roundedBorder)
                 .autocapitalization(.none)
+                .keyboardType(.emailAddress)
             
             SecureField("Password", text: $authViewModel.password)
                 .textFieldStyle(.roundedBorder)
@@ -29,12 +32,19 @@ struct LoginView: View {
             if !authViewModel.errorMessage.isEmpty {
                 Text(authViewModel.errorMessage)
                     .foregroundStyle(.red)
+                    .font(.caption)
             }
             
             Button("Giriş Yap") {
                 authViewModel.login()
             }
             .buttonStyle(.borderedProminent)
+            
+            Spacer()
+            
+            NavigationLink("Hesabınız yok mu? Kayıt Olun") {
+                RegisterView()
+            }.padding(.bottom, 20)
         }
         .padding()
     }
