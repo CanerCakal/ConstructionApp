@@ -10,9 +10,10 @@ import SwiftUI
 struct RegisterView: View {
     // AuthViewModel'e erişim sağlıyoruz ki register fonksiyonunu kullanabilelim.
     @EnvironmentObject var authViewModel: AuthViewModel
-    // Kullanıcı kayıt olduktan sonra giriş ekranına geri dönebilmek için kullanacağız.
-    @Environment(\.dismiss) var dismiss
-    // Sadece bu ekranda kullanılacak şifre tekrarı değişkeni
+    
+    // Sayfaya özel değişkenler. ViewModel ile çakışmayı önler!
+    @State private var registerEmail: String = ""
+    @State private var registerPassword: String = ""
     @State private var confirmPassword: String = ""
     @State private var localErrorMessage: String = ""
     
@@ -21,12 +22,15 @@ struct RegisterView: View {
             Text("Yeni Hesap Oluştur")
                 .font(.largeTitle)
                 .bold()
-            TextField("Email", text: $authViewModel.email)
+            
+            TextField("Email", text: $registerEmail)
                 .textFieldStyle(.roundedBorder)
                 .autocapitalization(.none)
                 .keyboardType(.emailAddress) // Klavye tipini email için ayarlıyoruz.
-            SecureField("Şifre", text: $authViewModel.password)
+            
+            SecureField("Şifre", text: $registerPassword)
                 .textFieldStyle(.roundedBorder)
+            
             SecureField("Şifre(Tekrar)", text: $confirmPassword)
                 .textFieldStyle(.roundedBorder)
             
@@ -40,37 +44,44 @@ struct RegisterView: View {
                     .foregroundStyle(.red)
                     .font(.caption)
             }
+            
             Button("Kayıt Ol") {
-                authViewModel.login()
-            }.buttonStyle(.borderedProminent)
+                registerUser()
+            }
+            .buttonStyle(.borderedProminent)
+            
             Spacer()
-        }.padding()
-            .navigationTitle("Kayıt Ol")
-            .navigationBarTitleDisplayMode(.inline)
+            
+        }
+        .padding()
+        .navigationTitle("Kayıt Ol")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            // Sayfa ilk açıldığında eski hata mesajlarını temizle
+            authViewModel.errorMesage = ""
+        }
     }
+    
     //MARK: Yardımcı Fonksiyonlar
     ///Kullanıcı verilerini kontrol edip kayıt işlemini başlatırlar
     private func registerUser() {
         
         // 1. Alanların boş olup olmadığını kontrol et
-        if authViewModel.email.isEmpty || authViewModel.password.isEmpty {
+        if registerEmail.isEmpty || registerPassword.isEmpty {
             localErrorMessage = "Lütfen tüm alanları doldurunuz!"
             return
         }
         
         // 2. Şifrelerin eşleşip eşleşmediğini kontrol et
-        if authViewModel.password != confirmPassword {
+        if registerPassword != confirmPassword {
             localErrorMessage = "Şifreler eşleşmiyor!!"
             return
         }
         
         // Her şey yolundaysa ViewModel üzerinden kayıt işlemini yap
         localErrorMessage = ""
-        authViewModel.register()
         
-        // Kayıt başarılıysa bir önceki ekrana (Giriş ekranına) dön
-        if authViewModel.errorMesage == "Kayıt Başarılı" {
-            dismiss()
-        }
+        // İşlemi sayfanın kendi değişkenleriyle ViewModel'e gönderiyoruz
+        authViewModel.register(emailInput: registerEmail, passwordInput: registerPassword)
     }
 }

@@ -34,11 +34,11 @@ class AuthViewModel: ObservableObject {
             print("Admin hesabı oluşturuldu")
         }
     }
-    //MARK: Kayıt olma fonksiyonu
-    func register() {
+    // MARK: - KAYIT OLMA FONKSİYONU (YENİ VE OTOMATİK GİRİŞLİ)
+    func register(emailInput: String, passwordInput: String) {
         errorMesage = ""
         
-        guard let context = context else {
+        guard let dbContext = self.context else {
             errorMesage = "Veritabanı bağlantısı yok"
             return
         }
@@ -48,7 +48,7 @@ class AuthViewModel: ObservableObject {
         do {
             // E-posta zaten kayıtlı mı diye manuel kontrol ediyoruz
             let descriptor = FetchDescriptor<User>()
-            let allUsers = try context.fetch(descriptor)
+            let allUsers = try dbContext.fetch(descriptor)
             
             if allUsers.contains(where: { $0.email == safeEmail }) {
                 errorMesage = "Bu e-posta adresi zaten kullanılıyor."
@@ -56,13 +56,18 @@ class AuthViewModel: ObservableObject {
             }
             
             let newUser = User(email: safeEmail, passwordHash: password, salt: "")
-            context.insert(newUser)
-            try context.save()
+            dbContext.insert(newUser)
+            try dbContext.save()
             
-            errorMesage = "Kayıt başarılı"
-            print("Kayıt edilen kullanıcı: \(safeEmail) - Şifre: \(password)")
+            self.email = safeEmail
+            self.password = passwordInput
+            self.isLoggedIn = true
+            self.errorMesage = ""
+            print("Kayıt başarılı ve otomatik giriş yapıldı: \(safeEmail)")
+            
         } catch {
             errorMesage = "Kayıt sırasında hata oluştu."
+            print("Hata detayı: \(error)")
         }
     }
     
