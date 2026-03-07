@@ -2,8 +2,6 @@
 //  ProjectDetailView.swift
 //  ConstructionApp
 //
-//  Created by Caner Çakal on 28.02.2026.
-//
 
 import SwiftUI
 import SwiftData
@@ -15,70 +13,133 @@ struct ProjectDetailView: View {
     
     @State private var pdfURL: URL?
     @State private var showShareSheet = false
+    
+    // Malzeme Ekleme Alanı Değişkenleri
     @State private var materialName: String = ""
     @State private var unit: String = ""
     @State private var usageRate: String = ""
     @State private var price: String = ""
     
+    // Hata Mesajı Kontrolü
+    @State private var errorMessage: String = ""
+    
     var body: some View {
-        VStack {
+        VStack(spacing: 0) {
             
-            VStack(spacing: 8) {
-                Text("Toplam Maliyet")
-                    .font(.headline)
-                Text("\(project.totalCost, specifier: "%.2f") TL")
-                    .font(.title)
-                    .bold()
-                    .foregroundColor(.green)
-            }.padding()
+            // MARK: - ÜST BİLGİ VE AI ANALİZ KARTI
+            VStack(spacing: 12) {
+                HStack {
+                    Text("Toplam Maliyet")
+                        .font(.headline)
+                        .foregroundColor(.gray)
+                    Spacer()
+                    Text("\(project.totalCost, specifier: "%.2f") TL")
+                        .font(.title2)
+                        .bold()
+                        .foregroundColor(.green)
+                }
+                
+                Divider()
+                
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("✨ AI Analizi")
+                        .font(.subheadline)
+                        .bold()
+                        .foregroundColor(.purple)
+                    Text(AIService.shared.analyzeProject(project: project))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding()
+            .background(RoundedRectangle(cornerRadius: 16).fill(Color(.systemBackground)).shadow(color: .black.opacity(0.1), radius: 5))
+            .padding()
             
-            VStack {
-                Text("AI Analizi")
-                    .font(.headline)
-                Text(AIService.shared.analyzeProject(project: project))
-                    .foregroundColor(.purple)
-            }.padding()
-            
+            // MARK: - MALZEME LİSTESİ
             List {
-                ForEach(project.materials) { material in
-                    VStack(alignment: .leading) {
-                        Text(material.name)
-                            .font(.headline)
-                        
-                        let requiredAmount = project.area * material.userPerSquareMeter
-                        let totalPrice = requiredAmount * material.pricePerUnit
-                        
-                        Text("Gerekli: \(requiredAmount, specifier: "%.2f") \(material.unit)")
-                        Text("Toplam Fiyat: \(totalPrice, specifier: "%.2f") TL")
-                            .foregroundColor(.blue)
+                Section(header: Text("Malzemeler")) {
+                    if project.materials.isEmpty {
+                        Text("Projeye henüz malzeme eklenmedi.")
+                            .foregroundColor(.gray)
+                            .font(.subheadline)
+                    } else {
+                        ForEach(project.materials) { material in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(material.name)
+                                    .font(.headline)
+                                
+                                let requiredAmount = project.area * material.userPerSquareMeter
+                                let totalPrice = requiredAmount * material.pricePerUnit
+                                
+                                HStack {
+                                    Text("Gerekli: \(requiredAmount, specifier: "%.2f") \(material.unit)")
+                                        .font(.subheadline)
+                                        .foregroundColor(.gray)
+                                    Spacer()
+                                    Text("\(totalPrice, specifier: "%.2f") TL")
+                                        .bold()
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                        }
+                        .onDelete(perform: deleteMaterial) // Kaydırarak silme özelliği
                     }
                 }
             }
+            .listStyle(.insetGrouped)
             
+            // MARK: - YENİ MALZEME EKLEME BÖLÜMÜ
             VStack(spacing: 10) {
-                TextField("Malzeme Adı", text: $materialName)
-                    .textFieldStyle(.roundedBorder)
-                TextField("Birim(kg, m3 vs)", text: $unit)
-                    .textFieldStyle(.roundedBorder)
-                TextField("m2 başına kullanım", text: $usageRate)
-                    .textFieldStyle(.roundedBorder)
-                    .keyboardType(.decimalPad)
-                TextField("Birim Fiyat", text: $price)
-                    .textFieldStyle(.roundedBorder)
-                    .keyboardType(.decimalPad)
-                Button("Malzeme Ekle") {
-                    addMaterial()
+                Text("Yeni Malzeme Ekle")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                HStack {
+                    TextField("Malzeme Adı", text: $materialName)
+                        .textFieldStyle(.roundedBorder)
+                    TextField("Birim (kg, m3)", text: $unit)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 100)
+                }
+                
+                HStack {
+                    TextField("m² Kullanımı", text: $usageRate)
+                        .textFieldStyle(.roundedBorder)
+                        .keyboardType(.decimalPad)
+                    TextField("Birim Fiyat", text: $price)
+                        .textFieldStyle(.roundedBorder)
+                        .keyboardType(.decimalPad)
+                }
+                
+                // Hata mesajı varsa göster
+                if !errorMessage.isEmpty {
+                    Text(errorMessage)
+                        .foregroundColor(.red)
+                        .font(.caption)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                
+                Button(action: addMaterial) {
+                    Text("Malzeme Ekle")
+                        .frame(maxWidth: .infinity) // Butonu tam genişlik yaptık
                 }
                 .buttonStyle(.borderedProminent)
-            }.padding()
-            
+            }
+            .padding()
+            .background(Color(.systemGray6))
         }
         .navigationTitle(project.name)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            Button("PDF") {
-                if let url = PDFService.generatePDF(for: project) {
-                    pdfURL = url
-                    showShareSheet = true
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    if let url = PDFService.generatePDF(for: project) {
+                        pdfURL = url
+                        showShareSheet = true
+                    }
+                } label: {
+                    Image(systemName: "square.and.arrow.up") // PDF butonu artık şık bir paylaşma ikonu
                 }
             }
         }
@@ -89,19 +150,61 @@ struct ProjectDetailView: View {
         }
     }
     
+    // MARK: - YARDIMCI FONKSİYONLAR
+    
     func addMaterial() {
-        guard let usage = Double(usageRate),
-              let priceValue = Double(price)
-        else { return }
-        let material = Material(name: materialName, unit: unit, userPerSquareMeter: usage, pricePerUnit: priceValue)
-        material.project = project
-        project.materials.append(material)
-        context.insert(material)
+        errorMessage = "" // Eski hatayı temizle
         
+        // 1. İsim ve birim kontrolü
+        let safeName = materialName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let safeUnit = unit.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        if safeName.isEmpty || safeUnit.isEmpty {
+            errorMessage = "Lütfen malzeme adını ve birimini girin."
+            return
+        }
+        
+        // 2. Ondalık sayıları güvenli hale getirme (Virgülü noktaya çevir)
+        let safeUsageStr = usageRate.replacingOccurrences(of: ",", with: ".")
+        let safePriceStr = price.replacingOccurrences(of: ",", with: ".")
+        
+        guard let usage = Double(safeUsageStr), usage > 0 else {
+            errorMessage = "Geçerli bir kullanım miktarı girin."
+            return
+        }
+        
+        guard let priceValue = Double(safePriceStr), priceValue >= 0 else {
+            errorMessage = "Geçerli bir birim fiyat girin."
+            return
+        }
+        
+        // 3. Her şey doğruysa malzemeyi ekle
+        let material = Material(name: safeName, unit: safeUnit, userPerSquareMeter: usage, pricePerUnit: priceValue)
+        material.project = project
+        project.materials.append(material) // Modele ekliyoruz
+        context.insert(material) // SwiftData'ya kaydediyoruz
+        
+        do {
+            try context.save()
+        } catch {
+            errorMessage = "Malzeme kaydedilirken hata oluştu."
+            return
+        }
+        
+        // İşlem başarılıysa kutuları temizle
         materialName = ""
         unit = ""
         usageRate = ""
         price = ""
     }
+    
+    // Malzeme silme fonksiyonu
+    func deleteMaterial(at offsets: IndexSet) {
+        for index in offsets {
+            let materialToDelete = project.materials[index]
+            context.delete(materialToDelete) // SwiftData'dan sil
+            project.materials.remove(at: index) // Ekranda görünen listeden sil
+        }
+        try? context.save() // Değişikliği veritabanına kaydet
+    }
 }
-
