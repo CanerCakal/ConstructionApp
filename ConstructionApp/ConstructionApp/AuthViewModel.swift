@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import SwiftUI
 import SwiftData
+import CryptoKit
 
 class AuthViewModel: ObservableObject {
     
@@ -22,18 +23,20 @@ class AuthViewModel: ObservableObject {
         self.context = context
     }
     
-    // Uygulama ilk açıldığında çalışan test hesabı oluşturucu
-    func createdDefaultAdminIfNeded() {
-        guard let context = context else { return }
-        let descriptor = FetchDescriptor<User>()
-        
-        if let user = try? context.fetch(descriptor), user.isEmpty {
-            let admin = User(email: "admin@test.com", passwordHash: "1234", salt: "")
-            context.insert(admin)
-            try? context.save()
-            print("Admin hesabı oluşturuldu")
-        }
+    // Her kullanıcı için benzersiz bir (salt) üretir
+    private func generateSalt() -> String {
+        return UUID().uuidString
     }
+    
+    // Şifreyi ve tuzu birleştirip SHA256 ile geri döndürülemez şekilde şifreler
+    private func hashPassword(_ password: String, salt: String) -> String {
+        let combined = salt + password
+        let data = Data(combined.utf8)
+        let hashed = SHA256.hash(data: data)
+        return hashed.map { String(format: "%02x", $0) }.joined()
+    }
+    
+    
     // MARK: - KAYIT OLMA FONKSİYONU (YENİ VE OTOMATİK GİRİŞLİ)
     func register(emailInput: String, passwordInput: String) {
         errorMesage = ""
@@ -55,7 +58,10 @@ class AuthViewModel: ObservableObject {
                 return
             }
             
-            let newUser = User(email: safeEmail, passwordHash: password, salt: "")
+            let salt = generateSalt()
+            let hashedPassword = hashPassword(passwordInput, salt: salt)
+            
+            let newUser = User(email: safeEmail, passwordHash: hashedPassword, salt: salt)
             dbContext.insert(newUser)
             try dbContext.save()
             
@@ -95,7 +101,11 @@ class AuthViewModel: ObservableObject {
                 handleFailedAttempts(message: "Kullanıcı Bulunamadı")
                 return
             }
-            if user.passwordHash == password {
+            
+            // 1. Kullanıcının şu an girdiği şifreyi, veritabanındaki (salt) ile şifrele
+            let hashedInput = hashPassword(password, salt: user.salt)
+            
+            if hashedInput == user.passwordHash {
                 isLoggedIn = true
                 errorMesage = ""
                 failedAttempts = 0
@@ -107,6 +117,7 @@ class AuthViewModel: ObservableObject {
             errorMesage = "Giriş sırasında bir hata oluştu"
         }
     }
+    
     // Hatalı girişleri yöneten fonksiyon
     func handleFailedAttempts(message: String) {
         failedAttempts += 1

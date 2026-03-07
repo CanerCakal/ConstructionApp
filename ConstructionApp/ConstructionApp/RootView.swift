@@ -12,7 +12,6 @@ struct RootView: View {
             .environmentObject(authViewModel)
             .onAppear {
                 authViewModel.setContext(context)
-                authViewModel.createdDefaultAdminIfNeded()
                 authViewModel.checkSession()
             }
     }
