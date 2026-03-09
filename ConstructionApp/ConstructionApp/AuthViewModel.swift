@@ -65,6 +65,9 @@ class AuthViewModel: ObservableObject {
             dbContext.insert(newUser)
             try dbContext.save()
             
+            KeychainManager.shared.save(key: "userEmail", data: safeEmail)
+            KeychainManager.shared.save(key: "userPassword", data: passwordInput)
+            
             self.email = safeEmail
             self.password = passwordInput
             self.isLoggedIn = true
@@ -104,8 +107,11 @@ class AuthViewModel: ObservableObject {
             
             // 1. Kullanıcının şu an girdiği şifreyi, veritabanındaki (salt) ile şifrele
             let hashedInput = hashPassword(password, salt: user.salt)
-            
             if hashedInput == user.passwordHash {
+                
+                KeychainManager.shared.save(key: "userEmail", data: safeEmail)
+                KeychainManager.shared.save(key: "userPassword", data: password)
+                
                 isLoggedIn = true
                 errorMesage = ""
                 failedAttempts = 0
@@ -130,6 +136,10 @@ class AuthViewModel: ObservableObject {
     }
     
     func logOut() {
+        
+        KeychainManager.shared.delete(key: "userEmail")
+        KeychainManager.shared.delete(key: "userPassword")
+        
         email = ""
         password = ""
         isLoggedIn = false
@@ -137,6 +147,33 @@ class AuthViewModel: ObservableObject {
     }
     
     func checkSession() {
+        guard let savedEmail = KeychainManager.shared.load(key: "userEmail"),
+              let savedPassword = KeychainManager.shared.load(key: "userPassword") else {
+            print("Keychain boş, giriş yapılamadı")
+            return
+        }
         
+        guard let dbContext = self.context else { return }
+        
+        do {
+            let descriptor = FetchDescriptor<User>()
+            let allUsers = try dbContext.fetch(descriptor)
+            
+            guard let user = allUsers.first(where: { $0 .email == savedEmail }) else {
+                logOut()
+                return
+            }
+            let hashedInput = hashPassword(savedPassword, salt: user.salt)
+            if hashedInput == user.passwordHash {
+                self.email = savedEmail
+                self.password = savedPassword
+                self.isLoggedIn = true
+                print("Keychain ile otomatik giriş yaıldı: \(savedEmail)")
+            } else {
+                logOut()
+            }
+        } catch {
+            print("Session kontrolü sırasında hata oluştu")
+        }
     }
 }

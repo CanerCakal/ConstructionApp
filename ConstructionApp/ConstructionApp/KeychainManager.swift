@@ -3,45 +3,42 @@ import Security
 
 class KeychainManager {
     
-    static func save(key: String, value: String) {
-        let data = value.data(using: .utf8)!
+    static let shared = KeychainManager()
+    
+    private init() {}
+    
+    func save(key:String, data:String) {
+        guard let dataFromString = data.data(using: .utf8) else { return }
         
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key,
-            kSecValueData as String: data
+        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+                                    kSecAttrAccount as String: key,
+                                    kSecValueData as String: dataFromString
         ]
         
         SecItemDelete(query as CFDictionary)
         SecItemAdd(query as CFDictionary, nil)
     }
     
-    static func read(key: String) -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key,
-            kSecReturnData as String: true
+    func load(key: String) -> String? {
+        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+                                    kSecAttrAccount as String: key,
+                                    kSecReturnData as String: kCFBooleanTrue!,
+                                    kSecMatchLimit as String: kSecMatchLimitOne
         ]
         
         var dataTypeRef: AnyObject?
-        
         let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
         
-        if status == errSecSuccess {
-            if let data = dataTypeRef as? Data {
-                return String(decoding: data, as: UTF8.self)
-            }
+        if status == errSecSuccess, let data = dataTypeRef as? Data {
+            return String(data: data, encoding: .utf8)
         }
-        
         return nil
     }
     
-    static func delete(key: String) {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key
+    func delete(key: String) {
+        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+                                    kSecAttrAccount as String: key
         ]
-        
         SecItemDelete(query as CFDictionary)
     }
 }
