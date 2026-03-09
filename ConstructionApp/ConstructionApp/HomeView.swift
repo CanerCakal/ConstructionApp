@@ -12,16 +12,18 @@ struct HomeView: View {
     @Environment(\.modelContext) private var context
     
     // Projeleri tarihe göre sıralı getirmek her zaman daha profesyoneldir
-    @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
+    @Query(sort: \Project.createdAt, order: .reverse) private var allProjects: [Project]
+    
+    var myProjects: [Project] {
+        allProjects.filter { $0.owner?.email == authViewModel.email}
+    }
     
     @State private var newProjectName: String = ""
     @State private var newProjectArea: String = ""
-    
-    // Kullanıcıya göstereceğimiz hata veya uyarı mesajı
     @State private var errorMessage: String = ""
     
     var totalPortfolioCost: Double {
-        projects.reduce(0) { $0 + $1.totalCost}
+        myProjects.reduce(0) { $0 + $1.totalCost }
     }
     
     var body: some View {
@@ -35,7 +37,7 @@ struct HomeView: View {
                             Text("Toplam Proje")
                                 .font(.subheadline)
                                 .foregroundColor(.gray)
-                            Text("\(projects.count)")
+                            Text("\(myProjects.count)")
                                 .font(.title)
                                 .bold()
                         }
@@ -57,7 +59,7 @@ struct HomeView: View {
                 
                 // MARK: - PROJELER LİSTESİ
                 List {
-                    ForEach(projects) { project in
+                    ForEach(myProjects) { project in
                         NavigationLink(destination: ProjectDetailView(project: project)) {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(project.name)
@@ -149,17 +151,21 @@ struct HomeView: View {
             return
         }
         
-        // 2. Alan (m2) kontrolü: Hem sayıya çevrilebiliyor mu, hem de 0'dan büyük mü diye bakıyoruz
-        guard let area = Double(newProjectArea), area > 0 else {
-            errorMessage = "Lütfen sıfırdan büyük geçerli bir alan (m2) değeri giriniz."
+        let safeAreaStr = newProjectArea.replacingOccurrences(of: ",", with: ".")
+        guard let area = Double(safeAreaStr), area > 0 else {
+            errorMessage = "Lütfen sıfırdan büyük geçerli bir alan (m2) giriniz."
             return
         }
         
-        // 3. Her şey doğruysa projeyi ekle
         let project = Project(name: trimmedName, area: area)
+        let currentUserEmail = authViewModel.email
+        let descriptor = FetchDescriptor<User>(predicate: #Predicate { $0.email == currentUserEmail })
+        if let currentUser = try? context.fetch(descriptor).first {
+            project.owner = currentUser
+        }
+        
         context.insert(project)
         
-        // 4. İşlem başarılı olduktan sonra alanları temizle
         newProjectName = ""
         newProjectArea = ""
         errorMessage = ""
@@ -167,7 +173,8 @@ struct HomeView: View {
     
     func deleteProject(at offsets: IndexSet) {
         for index in offsets {
-            context.delete(projects[index])
+            let projectToDelete = myProjects[index]
+            context.delete(projectToDelete)
         }
     }
 }

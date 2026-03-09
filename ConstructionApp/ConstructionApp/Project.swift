@@ -15,6 +15,8 @@ class Project {
     var area: Double
     var createdAt: Date
     
+    var owner: User?
+    
     @Relationship(deleteRule: .cascade)
     var materials: [Material] = []
     

@@ -10,6 +10,10 @@ import SwiftData
 
 @Model
 class User {
+    
+    @Relationship(deleteRule: .cascade, inverse: \Project.owner)
+    var projects: [Project]? = []
+    
     @Attribute(.unique) var email: String
     var passwordHash: String
     var salt: String
