@@ -19,6 +19,7 @@ struct ProjectDetailView: View {
     @State private var unit: String = ""
     @State private var usageRate: String = ""
     @State private var price: String = ""
+    @State private var materialToEdit: Material?
     
     // Hata Mesajı Kontrolü
     @State private var errorMessage: String = ""
@@ -81,6 +82,10 @@ struct ProjectDetailView: View {
                                         .bold()
                                         .foregroundColor(.blue)
                                 }
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                materialToEdit = material
                             }
                         }
                         .onDelete(perform: deleteMaterial) // Kaydırarak silme özelliği
@@ -147,6 +152,9 @@ struct ProjectDetailView: View {
             if let url = pdfURL {
                 ShareSheet(activityItems: [url])
             }
+        }
+        .sheet(item: $materialToEdit) { selectedMaterial in
+            EditMaterialView(material: selectedMaterial)
         }
     }
     
