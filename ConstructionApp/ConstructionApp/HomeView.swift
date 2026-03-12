@@ -106,19 +106,6 @@ struct HomeView: View {
                             viewModel.addProject(context: context, currentUserEmail: authViewModel.email)
                         }
                         .buttonStyle(.borderedProminent)
-                        
-                        // İleride sileceğimiz test butonumuz şimdilik burada kalsın
-                        Button("Sunucu Test") {
-                            Task {
-                                do {
-                                    let result = try await NetworkManager.shared.fetcSampleData()
-                                    print(result)
-                                } catch {
-                                    print("Hata:", error.localizedDescription)
-                                }
-                            }
-                        }
-                        .buttonStyle(.bordered)
                     }
                 }
                 .padding()
@@ -127,8 +114,18 @@ struct HomeView: View {
             .navigationTitle("Dashboard")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                Button("Çıkış") {
-                    authViewModel.logOut()
+                ToolbarItem(placement: .navigationBarLeading) {
+                    NavigationLink(destination: MarketPricesView()) {
+                        HStack {
+                            Image(systemName: "chart.line.uptrend.xyaxis")
+                            Text("Piyasa")
+                        }
+                    }
+                }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Çıkış") {
+                        authViewModel.logOut()
+                    }
                 }
             }
         }
