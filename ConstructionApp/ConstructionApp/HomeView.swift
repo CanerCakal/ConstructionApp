@@ -18,13 +18,7 @@ struct HomeView: View {
         allProjects.filter { $0.owner?.email == authViewModel.email}
     }
     
-    @State private var newProjectName: String = ""
-    @State private var newProjectArea: String = ""
-    @State private var errorMessage: String = ""
-    
-    var totalPortfolioCost: Double {
-        myProjects.reduce(0) { $0 + $1.totalCost }
-    }
+    @StateObject private var viewModel = HomeViewModel()
     
     var body: some View {
         NavigationView {
@@ -46,7 +40,7 @@ struct HomeView: View {
                             Text("Genel Maliyet")
                                 .font(.subheadline)
                                 .foregroundColor(.gray)
-                            Text("\(totalPortfolioCost, specifier: "%.2f") TL")
+                            Text("\(viewModel.calculateTotalCost(for: myProjects), specifier: "%.2f")")
                                 .font(.title2)
                                 .bold()
                                 .foregroundColor(.blue)
@@ -79,7 +73,9 @@ struct HomeView: View {
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                     }
-                    .onDelete(perform: deleteProject)
+                    .onDelete { indexSet in
+                        viewModel.deleteProject(at: indexSet, from: myProjects, context: context)
+                    }
                 }
                 .listStyle(.plain)
                 
@@ -91,23 +87,23 @@ struct HomeView: View {
                         .font(.headline)
                         .padding(.top, 5)
                     
-                    TextField("Proje Adı", text: $newProjectName)
+                    TextField("Proje Adı", text: $viewModel.newProjectName)
                         .textFieldStyle(.roundedBorder)
                     
-                    TextField("Alan (m2)", text: $newProjectArea)
+                    TextField("Alan (m2)", text: $viewModel.newProjectArea)
                         .textFieldStyle(.roundedBorder)
                         .keyboardType(.decimalPad)
                     
                     // Hata mesajı alanı
-                    if !errorMessage.isEmpty {
-                        Text(errorMessage)
+                    if !viewModel.errorMessage.isEmpty {
+                        Text(viewModel.errorMessage)
                             .foregroundColor(.red)
                             .font(.caption)
                     }
                     
                     HStack(spacing: 15) {
                         Button("Proje Ekle") {
-                            addProject()
+                            viewModel.addProject(context: context, currentUserEmail: authViewModel.email)
                         }
                         .buttonStyle(.borderedProminent)
                         
@@ -135,46 +131,6 @@ struct HomeView: View {
                     authViewModel.logOut()
                 }
             }
-        }
-    }
-    
-    // MARK: - YARDIMCI FONKSİYONLAR
-    
-    func addProject() {
-        errorMessage = "" // Her basışta eski hatayı temizle
-        
-        // 1. İsim kontrolü: Sadece boşluklardan oluşan girişleri engellemek için metni temizliyoruz
-        let trimmedName = newProjectName.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        if trimmedName.isEmpty {
-            errorMessage = "Lütfen geçerli bir proje adı giriniz."
-            return
-        }
-        
-        let safeAreaStr = newProjectArea.replacingOccurrences(of: ",", with: ".")
-        guard let area = Double(safeAreaStr), area > 0 else {
-            errorMessage = "Lütfen sıfırdan büyük geçerli bir alan (m2) giriniz."
-            return
-        }
-        
-        let project = Project(name: trimmedName, area: area)
-        let currentUserEmail = authViewModel.email
-        let descriptor = FetchDescriptor<User>(predicate: #Predicate { $0.email == currentUserEmail })
-        if let currentUser = try? context.fetch(descriptor).first {
-            project.owner = currentUser
-        }
-        
-        context.insert(project)
-        
-        newProjectName = ""
-        newProjectArea = ""
-        errorMessage = ""
-    }
-    
-    func deleteProject(at offsets: IndexSet) {
-        for index in offsets {
-            let projectToDelete = myProjects[index]
-            context.delete(projectToDelete)
         }
     }
 }
