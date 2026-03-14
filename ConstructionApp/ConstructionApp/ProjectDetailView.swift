@@ -12,9 +12,7 @@ struct ProjectDetailView: View {
     @Environment(\.modelContext) private var context
     @Bindable var project: Project
     
-    @State private var pdfURL: URL?
-    @State private var showShareSheet = false
-    
+    @State private var pdfDoc: PDFDocumentItem?
     @State private var materialToEdit: Material?
     
     // İnternetten çekilecek katalog ve seçilen malzeme
@@ -204,9 +202,10 @@ struct ProjectDetailView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
+                    // PDF'i oluştur
                     if let url = PDFService.generatePDF(for: project) {
-                        pdfURL = url
-                        showShareSheet = true
+                        // Yeni değer atandığı an SwiftUI sheet'i %100 güvenle açar
+                        pdfDoc = PDFDocumentItem(url: url)
                     }
                 } label: {
                     Image(systemName: "square.and.arrow.up")
@@ -216,10 +215,9 @@ struct ProjectDetailView: View {
         .sheet(item: $materialToEdit) { selectedMaterial in
             EditMaterialView(material: selectedMaterial)
         }
-        .sheet(isPresented: $showShareSheet) {
-            if let url = pdfURL {
-                ShareSheet(activityItems: [url])
-            }
+        // YENİ: showShareSheet yerine doğrudan nesneyi (item) dinliyoruz!
+        .sheet(item: $pdfDoc) { doc in
+            ShareSheet(activityItems: [doc.url])
         }
         .task {
             do {
@@ -271,4 +269,9 @@ struct ProjectDetailView: View {
             try? context.save()
         }
     }
+}
+
+struct PDFDocumentItem: Identifiable {
+    let id = UUID()
+    let url: URL
 }
