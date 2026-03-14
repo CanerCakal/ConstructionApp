@@ -12,7 +12,7 @@ struct CurrencyResponse: Codable {
 }
 
 // Ekranda göstereceğimiz İnşaat Malzemesi Modeli
-struct MarketMaterial: Identifiable {
+struct MarketMaterial: Identifiable, Hashable {
     let id = UUID()
     let name: String
     let unit: String
@@ -52,7 +52,13 @@ class NetworkManager {
             MarketMaterial(name: "İnşaat Demiri", unit: "Ton", basePriceUSD: 720.0),
             MarketMaterial(name: "Tuğla", unit: "Adet", basePriceUSD: 0.30),
             MarketMaterial(name: "Kum", unit: "Ton", basePriceUSD: 14.0),
-            MarketMaterial(name: "Boya (İç Cephe)", unit: "Kova", basePriceUSD: 26.0)
+            MarketMaterial(name: "Boya (İç Cephe)", unit: "Kova", basePriceUSD: 26.0),
+            MarketMaterial(name: "Seramik Fayans", unit: "m2", basePriceUSD: 12.0),
+            MarketMaterial(name: "Laminant Parke", unit: "m2", basePriceUSD: 8.5),
+            MarketMaterial(name: "Alçıpan", unit: "m2", basePriceUSD: 3.2),
+            MarketMaterial(name: "Elektrik Kablosu", unit: "Metre", basePriceUSD: 1.1),
+            MarketMaterial(name: "Su Borusu (PVC)", unit: "Metre", basePriceUSD: 2.5),
+            MarketMaterial(name: "Çatı İzolasyon (Membran)", unit: "m2", basePriceUSD: 5.5)
         ]
         
         // 4. SİHİRLİ DOKUNUŞ: Her malzemenin Dolar fiyatını canlı TL kuruyla çarp!

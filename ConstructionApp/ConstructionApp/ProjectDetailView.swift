@@ -17,10 +17,12 @@ struct ProjectDetailView: View {
     
     @State private var materialToEdit: Material?
     
-    @State private var materialName: String = ""
-    @State private var unit: String = ""
+    // İnternetten çekilecek katalog ve seçilen malzeme
+    @State private var availableMarketMaterials: [MarketMaterial] = []
+    @State private var selectedMaterial: MarketMaterial?
+    
+    // Kullanıcının gireceği miktar ve hata mesajı
     @State private var usageRate: String = ""
-    @State private var price: String = ""
     @State private var errorMessage: String = ""
     
     var body: some View {
@@ -57,7 +59,7 @@ struct ProjectDetailView: View {
                 .background(RoundedRectangle(cornerRadius: 16).fill(Color(.systemBackground)).shadow(color: .black.opacity(0.1), radius: 5))
                 .padding(.horizontal)
                 
-                // MARK: - YENİ: MALİYET DAĞILIMI GRAFİĞİ (CHART)
+                // MARK: - MALİYET DAĞILIMI GRAFİĞİ (CHART)
                 if !project.materials.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Maliyet Dağılımı")
@@ -117,7 +119,6 @@ struct ProjectDetailView: View {
                             .onTapGesture {
                                 materialToEdit = material
                             }
-
                             .contextMenu {
                                 Button(role: .destructive) {
                                     deleteMaterial(material: material)
@@ -131,25 +132,50 @@ struct ProjectDetailView: View {
                 
                 // MARK: - YENİ MALZEME EKLEME BÖLÜMÜ
                 VStack(spacing: 15) {
-                    Text("Yeni Malzeme Ekle")
+                    Text("Katalogdan Malzeme Seç")
                         .font(.headline)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     
-                    HStack {
-                        TextField("Malzeme Adı", text: $materialName)
-                            .textFieldStyle(.roundedBorder)
-                        TextField("Birim (kg, m3)", text: $unit)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 100)
-                    }
-                    
-                    HStack {
-                        TextField("m² Kullanımı", text: $usageRate)
-                            .textFieldStyle(.roundedBorder)
-                            .keyboardType(.decimalPad)
-                        TextField("Birim Fiyat", text: $price)
-                            .textFieldStyle(.roundedBorder)
-                            .keyboardType(.decimalPad)
+                    // Eğer internetten veriler geliyorsa yükleniyor ikonu göster
+                    if availableMarketMaterials.isEmpty {
+                        ProgressView("Canlı fiyatlar yükleniyor...")
+                    } else {
+                        // AÇILIR MENÜ (DROPDOWN)
+                        Menu {
+                            ForEach(availableMarketMaterials) { material in
+                                Button("\(material.name) (\(material.currentPriceTRY, specifier: "%.2f") ₺)") {
+                                    selectedMaterial = material
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Text(selectedMaterial?.name ?? "Katalogdan Seçiniz...")
+                                    .foregroundColor(selectedMaterial == nil ? .gray : .primary)
+                                Spacer()
+                                Image(systemName: "chevron.down")
+                            }
+                            .padding()
+                            .background(Color(.systemBackground))
+                            .cornerRadius(8)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3), lineWidth: 1))
+                        }
+                        
+                        // Malzeme seçildiyse kullanım miktarını sor
+                        if let selected = selectedMaterial {
+                            HStack {
+                                Text("Birim: \(selected.unit)")
+                                    .font(.subheadline)
+                                    .foregroundColor(.gray)
+                                Spacer()
+                                Text("Güncel Fiyat: \(selected.currentPriceTRY, specifier: "%.2f") ₺")
+                                    .font(.subheadline)
+                                    .foregroundColor(.blue)
+                            }
+                            
+                            TextField("1 m² için kaç \(selected.unit) kullanılacak?", text: $usageRate)
+                                .textFieldStyle(.roundedBorder)
+                                .keyboardType(.decimalPad)
+                        }
                     }
                     
                     if !errorMessage.isEmpty {
@@ -160,15 +186,16 @@ struct ProjectDetailView: View {
                     }
                     
                     Button(action: addMaterial) {
-                        Text("Malzeme Ekle")
+                        Text("Projeye Ekle")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(selectedMaterial == nil) // Malzeme seçilmeden butona basılmasın
                 }
                 .padding()
                 .background(RoundedRectangle(cornerRadius: 16).fill(Color(.systemGray6)))
                 .padding(.horizontal)
-                .padding(.bottom, 30) 
+                .padding(.bottom, 30)
             }
             .padding(.top)
         }
@@ -194,46 +221,49 @@ struct ProjectDetailView: View {
                 ShareSheet(activityItems: [url])
             }
         }
+        .task {
+            do {
+                // Sayfa açıldığında canlı verileri API'den çekip kataloğa doldurur
+                let (_, materials) = try await NetworkManager.shared.fetchLiveMaterialPrices()
+                self.availableMarketMaterials = materials
+            } catch {
+                errorMessage = "Malzeme kataloğu internetten çekilemedi."
+            }
+        }
     }
     
     // MARK: - YARDIMCI FONKSİYONLAR
     
     func addMaterial() {
         errorMessage = ""
-        let safeName = materialName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let safeUnit = unit.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        if safeName.isEmpty || safeUnit.isEmpty {
-            errorMessage = "Lütfen malzeme adını ve birimini girin."
+        // Artık yazıyla değil, seçilen nesne üzerinden ilerliyoruz
+        guard let selected = selectedMaterial else {
+            errorMessage = "Lütfen katalogdan bir malzeme seçin."
             return
         }
         
         let safeUsageStr = usageRate.replacingOccurrences(of: ",", with: ".")
-        let safePriceStr = price.replacingOccurrences(of: ",", with: ".")
         
         guard let usage = Double(safeUsageStr), usage > 0 else {
             errorMessage = "Geçerli bir kullanım miktarı girin."
             return
         }
-        guard let priceValue = Double(safePriceStr), priceValue >= 0 else {
-            errorMessage = "Geçerli bir birim fiyat girin."
-            return
-        }
         
-        let material = Material(name: safeName, unit: safeUnit, userPerSquareMeter: usage, pricePerUnit: priceValue)
+        // Fiyat, İsim ve Birim artık doğrudan API'den gelen canlı veriler!
+        let material = Material(name: selected.name, unit: selected.unit, userPerSquareMeter: usage, pricePerUnit: selected.currentPriceTRY)
         material.project = project
         project.materials.append(material)
         context.insert(material)
         
         try? context.save()
         
-        materialName = ""
-        unit = ""
+        // İşlem bitince formu temizle
+        selectedMaterial = nil
         usageRate = ""
-        price = ""
     }
     
-    // YENİ SİLME FONKSİYONU (ContextMenu için uyarlandı)
+    // ContextMenu silme fonksiyonu
     func deleteMaterial(material: Material) {
         if let index = project.materials.firstIndex(where: { $0.id == material.id }) {
             context.delete(material)
