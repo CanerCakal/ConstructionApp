@@ -117,8 +117,8 @@ struct HomeView: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     NavigationLink(destination: MarketPricesView()) {
                         HStack {
-                            Image(systemName: "chart.line.uptrend.xyaxis")
-                            Text("Piyasa")
+                            Image(systemName: "dollarsign.arrow.circlepath")
+                            Text("Kurlar")
                         }
                     }
                 }

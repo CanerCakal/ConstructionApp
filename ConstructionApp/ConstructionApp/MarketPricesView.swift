@@ -6,62 +6,92 @@
 import SwiftUI
 
 struct MarketPricesView: View {
-    // Çekilen verileri tutacağımız dizi
-    @State private var marketMaterials: [MarketMaterial] = []
+    @State private var materials: [MarketMaterial] = []
+    @State private var liveUSDRate: Double = 0.0 // O anki Dolar kurunu ekranda göstermek için
     
-    // Yükleniyor animasyonunu kontrol eden değişken
     @State private var isLoading: Bool = true
     @State private var errorMessage: String = ""
     
     var body: some View {
         Group {
             if isLoading {
-                // İnternet beklenirken dönen Apple'ın standart yükleme ikonu
                 VStack(spacing: 15) {
                     ProgressView()
                         .scaleEffect(1.5)
-                    Text("Canlı fiyatlar çekiliyor...")
+                    Text("Canlı piyasa verileri hesaplanıyor...")
                         .foregroundColor(.gray)
                 }
             } else if !errorMessage.isEmpty {
                 Text(errorMessage).foregroundColor(.red)
             } else {
-                List(marketMaterials) { material in
+                VStack {
+                    // MARK: - ÜST BİLGİ KARTI (CANLI KUR)
                     HStack {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(material.name)
-                                .font(.headline)
-                            Text("Birim: \(material.unit)")
-                                .font(.caption)
+                        VStack(alignment: .leading) {
+                            Text("Canlı Dolar Kuru")
+                                .font(.subheadline)
                                 .foregroundColor(.gray)
+                            Text("1 USD = \(liveUSDRate, specifier: "%.2f") ₺")
+                                .font(.title2)
+                                .bold()
+                                .foregroundColor(.green)
                         }
-                        
                         Spacer()
-                        
-                        Text("\(material.price, specifier: "%.2f") TL")
-                            .bold()
-                            .foregroundColor(.green)
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .foregroundColor(.blue)
+                            .font(.title)
                     }
+                    .padding()
+                    .background(RoundedRectangle(cornerRadius: 15).fill(Color(.systemBackground)).shadow(color: .black.opacity(0.1), radius: 5))
+                    .padding()
+                    
+                    // MARK: - HESAPLANMIŞ MALZEME LİSTESİ
+                    List(materials) { material in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(material.name)
+                                    .font(.headline)
+                                HStack {
+                                    Text("Birim: \(material.unit)")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                    Text("•")
+                                        .foregroundColor(.gray)
+                                    Text("Baz: $\(material.basePriceUSD, specifier: "%.2f")")
+                                        .font(.caption)
+                                        .foregroundColor(.orange)
+                                }
+                            }
+                            
+                            Spacer()
+                            
+                            // Canlı kur ile çarpılmış güncel TL fiyatı
+                            Text("\(material.currentPriceTRY, specifier: "%.2f") ₺")
+                                .bold()
+                                .foregroundColor(.primary)
+                        }
+                    }
+                    .listStyle(.insetGrouped)
                 }
-                .listStyle(.insetGrouped)
             }
         }
-        .navigationTitle("Piyasa Fiyatları")
-        // YENİ: .task özelliği, ekran açıldığı anda otomatik olarak içindeki işlemi başlatır
+        .navigationTitle("Güncel Maliyetler")
         .task {
             await loadData()
         }
     }
     
-    // MARK: - İNTERNETE BAĞLANMA İŞLEMİ
     private func loadData() async {
-        isLoading = true // Yükleniyor ekranını aç
+        isLoading = true
         do {
-            // Kuryeyi (NetworkManager) gönder ve cevap gelene kadar burada bekle (await)
-            marketMaterials = try await NetworkManager.shared.fetchMarketPrices()
+            // NetworkManager'dan hem güncel kuru hem de hesaplanmış listeyi alıyoruz
+            let result = try await NetworkManager.shared.fetchLiveMaterialPrices()
+            self.liveUSDRate = result.0
+            self.materials = result.1
         } catch {
-            errorMessage = "Veriler çekilirken hata oluştu."
+            errorMessage = "Fiyatlar hesaplanırken bir hata oluştu."
+            print("API Hatası: \(error)")
         }
-        isLoading = false // Veri geldi, yükleniyor ekranını kapat
+        isLoading = false
     }
 }

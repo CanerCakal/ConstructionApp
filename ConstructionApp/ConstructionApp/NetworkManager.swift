@@ -5,44 +5,62 @@
 
 import Foundation
 
-// 1. İNTERNETTEN GELECEK VERİNİN KALIBI (MODEL)
-// 'Codable' sayesinde JSON verisi otomatik olarak bu yapıya dönüşür.
-struct MarketMaterial: Identifiable, Codable {
-    var id: String { name } // Her malzemenin adı benzersiz olduğu için ID olarak kullanıyoruz
+// API'den gelecek JSON formatı
+struct CurrencyResponse: Codable {
+    let base_code: String
+    let rates: [String: Double]
+}
+
+// Ekranda göstereceğimiz İnşaat Malzemesi Modeli
+struct MarketMaterial: Identifiable {
+    let id = UUID()
     let name: String
     let unit: String
-    let price: Double
+    let basePriceUSD: Double // Malzemenin dünyadaki sabit dolar fiyatı
+    var currentPriceTRY: Double = 0.0 // Canlı kurla hesaplanacak TL fiyatı
 }
 
 class NetworkManager {
     static let shared = NetworkManager()
-    
     private init() {}
     
-    // 2. CANLI VERİ ÇEKME FONKSİYONU
-    func fetchMarketPrices() async throws -> [MarketMaterial] {
-        // Gerçek bir API'ye bağlanıyormuşuz gibi 1.5 saniye internet gecikmesi simüle ediyoruz
-        try await Task.sleep(nanoseconds: 1_500_000_000)
+    // Hem canlı kuru hem de hesaplanmış malzemeleri aynı anda döndüren fonksiyon
+    func fetchLiveMaterialPrices() async throws -> (Double, [MarketMaterial]) {
         
-        // Sunucudan (API) gelen evrensel JSON veri formatı
-        let jsonString = """
-        [
-            {"name": "Çimento (Torba)", "unit": "Adet", "price": 145.50},
-            {"name": "Hazır Beton (C30)", "unit": "m3", "price": 2450.00},
-            {"name": "İnşaat Demiri", "unit": "Ton", "price": 23500.00},
-            {"name": "Tuğla", "unit": "Adet", "price": 9.50},
-            {"name": "Kum", "unit": "Ton", "price": 450.00},
-            {"name": "Boya (İç Cephe)", "unit": "Kova", "price": 850.00}
-        ]
-        """
+        // 1. Canlı Döviz API'sine bağlan
+        guard let url = URL(string: "https://open.er-api.com/v6/latest/USD") else {
+            throw URLError(.badURL)
+        }
         
-        // Metni Data (veri) formatına çeviriyoruz
-        guard let data = jsonString.data(using: .utf8) else {
+        let (data, response) = try await URLSession.shared.data(from: url)
+        
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
             throw URLError(.badServerResponse)
         }
         
-        // 3. ÇEVİRMEN (JSONDecoder): JSON datasını al, 'MarketMaterial' dizisine çevir
-        let materials = try JSONDecoder().decode([MarketMaterial].self, from: data)
-        return materials
+        let decodedData = try JSONDecoder().decode(CurrencyResponse.self, from: data)
+        
+        // 2. Canlı Dolar / TL (TRY) kurunu al
+        guard let tryRate = decodedData.rates["TRY"] else {
+            throw URLError(.cannotParseResponse)
+        }
+        
+        // 3. İnşaat malzemelerinin Dolar (USD) bazındaki ortalama fiyatları
+        var materials = [
+            MarketMaterial(name: "Çimento (Torba)", unit: "Adet", basePriceUSD: 4.5),
+            MarketMaterial(name: "Hazır Beton (C30)", unit: "m3", basePriceUSD: 75.0),
+            MarketMaterial(name: "İnşaat Demiri", unit: "Ton", basePriceUSD: 720.0),
+            MarketMaterial(name: "Tuğla", unit: "Adet", basePriceUSD: 0.30),
+            MarketMaterial(name: "Kum", unit: "Ton", basePriceUSD: 14.0),
+            MarketMaterial(name: "Boya (İç Cephe)", unit: "Kova", basePriceUSD: 26.0)
+        ]
+        
+        // 4. SİHİRLİ DOKUNUŞ: Her malzemenin Dolar fiyatını canlı TL kuruyla çarp!
+        for i in 0..<materials.count {
+            materials[i].currentPriceTRY = materials[i].basePriceUSD * tryRate
+        }
+        
+        // Hem o anki güncel kuru hem de hesaplanmış listeyi geri gönder
+        return (tryRate, materials)
     }
 }
