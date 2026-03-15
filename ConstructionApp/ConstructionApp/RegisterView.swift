@@ -39,8 +39,8 @@ struct RegisterView: View {
                 Text(localErrorMessage)
                     .foregroundStyle(.red)
                     .font(.caption)
-            } else if !authViewModel.errorMesage.isEmpty {
-                Text(authViewModel.errorMesage)
+            } else if !authViewModel.errorMessage.isEmpty {
+                Text(authViewModel.errorMessage)
                     .foregroundStyle(.red)
                     .font(.caption)
             }
@@ -58,7 +58,7 @@ struct RegisterView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             // Sayfa ilk açıldığında eski hata mesajlarını temizle
-            authViewModel.errorMesage = ""
+            authViewModel.errorMessage = ""
         }
     }
     

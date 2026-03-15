@@ -7,21 +7,23 @@ import SwiftUI
 import SwiftData
 import Charts
 
+// PDF Beyaz sayfa sorununu çözen taşıyıcı
+struct PDFDocumentItem: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
 struct ProjectDetailView: View {
     
     @Environment(\.modelContext) private var context
     @Bindable var project: Project
     
+    // Artık bütün verileri ve mantığı Müdür yönetecek
+    @StateObject private var viewModel = ProjectDetailViewModel()
+    
+    // PDF ve Düzenleme Ekranı Kontrolleri
     @State private var pdfDoc: PDFDocumentItem?
     @State private var materialToEdit: Material?
-    
-    // İnternetten çekilecek katalog ve seçilen malzeme
-    @State private var availableMarketMaterials: [MarketMaterial] = []
-    @State private var selectedMaterial: MarketMaterial?
-    
-    // Kullanıcının gireceği miktar ve hata mesajı
-    @State private var usageRate: String = ""
-    @State private var errorMessage: String = ""
     
     var body: some View {
         ScrollView {
@@ -119,7 +121,8 @@ struct ProjectDetailView: View {
                             }
                             .contextMenu {
                                 Button(role: .destructive) {
-                                    deleteMaterial(material: material)
+                                    // Silme işini Müdüre devrettik
+                                    viewModel.deleteMaterial(material, from: project, context: context)
                                 } label: {
                                     Label("Sil", systemImage: "trash")
                                 }
@@ -135,20 +138,20 @@ struct ProjectDetailView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     
                     // Eğer internetten veriler geliyorsa yükleniyor ikonu göster
-                    if availableMarketMaterials.isEmpty {
+                    if viewModel.availableMarketMaterials.isEmpty {
                         ProgressView("Canlı fiyatlar yükleniyor...")
                     } else {
                         // AÇILIR MENÜ (DROPDOWN)
                         Menu {
-                            ForEach(availableMarketMaterials) { material in
+                            ForEach(viewModel.availableMarketMaterials) { material in
                                 Button("\(material.name) (\(material.currentPriceTRY, specifier: "%.2f") ₺)") {
-                                    selectedMaterial = material
+                                    viewModel.selectedMaterial = material
                                 }
                             }
                         } label: {
                             HStack {
-                                Text(selectedMaterial?.name ?? "Katalogdan Seçiniz...")
-                                    .foregroundColor(selectedMaterial == nil ? .gray : .primary)
+                                Text(viewModel.selectedMaterial?.name ?? "Katalogdan Seçiniz...")
+                                    .foregroundColor(viewModel.selectedMaterial == nil ? .gray : .primary)
                                 Spacer()
                                 Image(systemName: "chevron.down")
                             }
@@ -159,7 +162,7 @@ struct ProjectDetailView: View {
                         }
                         
                         // Malzeme seçildiyse kullanım miktarını sor
-                        if let selected = selectedMaterial {
+                        if let selected = viewModel.selectedMaterial {
                             HStack {
                                 Text("Birim: \(selected.unit)")
                                     .font(.subheadline)
@@ -170,25 +173,28 @@ struct ProjectDetailView: View {
                                     .foregroundColor(.blue)
                             }
                             
-                            TextField("1 m² için kaç \(selected.unit) kullanılacak?", text: $usageRate)
+                            TextField("1 m² için kaç \(selected.unit) kullanılacak?", text: $viewModel.usageRate)
                                 .textFieldStyle(.roundedBorder)
                                 .keyboardType(.decimalPad)
                         }
                     }
                     
-                    if !errorMessage.isEmpty {
-                        Text(errorMessage)
+                    if !viewModel.errorMessage.isEmpty {
+                        Text(viewModel.errorMessage)
                             .foregroundColor(.red)
                             .font(.caption)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     
-                    Button(action: addMaterial) {
+                    Button {
+                        // Ekleme işini Müdüre devrettik
+                        viewModel.addMaterial(to: project, context: context)
+                    } label: {
                         Text("Projeye Ekle")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(selectedMaterial == nil) // Malzeme seçilmeden butona basılmasın
+                    .disabled(viewModel.selectedMaterial == nil) // Malzeme seçilmeden butona basılmasın
                 }
                 .padding()
                 .background(RoundedRectangle(cornerRadius: 16).fill(Color(.systemGray6)))
@@ -204,7 +210,6 @@ struct ProjectDetailView: View {
                 Button {
                     // PDF'i oluştur
                     if let url = PDFService.generatePDF(for: project) {
-                        // Yeni değer atandığı an SwiftUI sheet'i %100 güvenle açar
                         pdfDoc = PDFDocumentItem(url: url)
                     }
                 } label: {
@@ -215,63 +220,12 @@ struct ProjectDetailView: View {
         .sheet(item: $materialToEdit) { selectedMaterial in
             EditMaterialView(material: selectedMaterial)
         }
-        // YENİ: showShareSheet yerine doğrudan nesneyi (item) dinliyoruz!
         .sheet(item: $pdfDoc) { doc in
             ShareSheet(activityItems: [doc.url])
         }
         .task {
-            do {
-                // Sayfa açıldığında canlı verileri API'den çekip kataloğa doldurur
-                let (_, materials) = try await NetworkManager.shared.fetchLiveMaterialPrices()
-                self.availableMarketMaterials = materials
-            } catch {
-                errorMessage = "Malzeme kataloğu internetten çekilemedi."
-            }
+            // Sadece müdüre "İnternetten verileri çek" diyoruz
+            await viewModel.loadMarketMaterials()
         }
     }
-    
-    // MARK: - YARDIMCI FONKSİYONLAR
-    
-    func addMaterial() {
-        errorMessage = ""
-        
-        // Artık yazıyla değil, seçilen nesne üzerinden ilerliyoruz
-        guard let selected = selectedMaterial else {
-            errorMessage = "Lütfen katalogdan bir malzeme seçin."
-            return
-        }
-        
-        let safeUsageStr = usageRate.replacingOccurrences(of: ",", with: ".")
-        
-        guard let usage = Double(safeUsageStr), usage > 0 else {
-            errorMessage = "Geçerli bir kullanım miktarı girin."
-            return
-        }
-        
-        // Fiyat, İsim ve Birim artık doğrudan API'den gelen canlı veriler!
-        let material = Material(name: selected.name, unit: selected.unit, userPerSquareMeter: usage, pricePerUnit: selected.currentPriceTRY)
-        material.project = project
-        project.materials.append(material)
-        context.insert(material)
-        
-        try? context.save()
-        
-        // İşlem bitince formu temizle
-        selectedMaterial = nil
-        usageRate = ""
-    }
-    
-    // ContextMenu silme fonksiyonu
-    func deleteMaterial(material: Material) {
-        if let index = project.materials.firstIndex(where: { $0.id == material.id }) {
-            context.delete(material)
-            project.materials.remove(at: index)
-            try? context.save()
-        }
-    }
-}
-
-struct PDFDocumentItem: Identifiable {
-    let id = UUID()
-    let url: URL
 }

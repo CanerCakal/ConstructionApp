@@ -11,7 +11,7 @@ class AuthViewModel: ObservableObject {
     @Published var email: String = ""
     @Published var password: String = ""
     @Published var isLoggedIn: Bool = false
-    @Published var errorMesage: String = ""
+    @Published var errorMessage: String = ""
     
     // Kilitlenme mekanizması için
     @Published var failedAttempts: Int = 0
@@ -39,10 +39,10 @@ class AuthViewModel: ObservableObject {
     
     // MARK: - KAYIT OLMA FONKSİYONU (YENİ VE OTOMATİK GİRİŞLİ)
     func register(emailInput: String, passwordInput: String) {
-        errorMesage = ""
+        errorMessage = ""
         
         guard let dbContext = self.context else {
-            errorMesage = "Veritabanı bağlantısı yok"
+            errorMessage = "Veritabanı bağlantısı yok"
             return
         }
         
@@ -54,7 +54,7 @@ class AuthViewModel: ObservableObject {
             let allUsers = try dbContext.fetch(descriptor)
             
             if allUsers.contains(where: { $0.email == safeEmail }) {
-                errorMesage = "Bu e-posta adresi zaten kullanılıyor."
+                errorMessage = "Bu e-posta adresi zaten kullanılıyor."
                 return
             }
             
@@ -71,27 +71,27 @@ class AuthViewModel: ObservableObject {
             self.email = safeEmail
             self.password = passwordInput
             self.isLoggedIn = true
-            self.errorMesage = ""
+            self.errorMessage = ""
             print("Kayıt başarılı ve otomatik giriş yapıldı: \(safeEmail)")
             
         } catch {
-            errorMesage = "Kayıt sırasında hata oluştu."
+            errorMessage = "Kayıt sırasında hata oluştu."
             print("Hata detayı: \(error)")
         }
     }
     
     //MARK: Giriş yapma fonksiyonu
     func login() {
-        errorMesage = ""
+        errorMessage = ""
         
         // 30 saniye kilidi devrede mi?
         if let lockUntil = lockUntil, Date() < lockUntil {
-            errorMesage = "Çok fazla deneme yaptınız. Lütfen bekleyiniz."
+            errorMessage = "Çok fazla deneme yaptınız. Lütfen bekleyiniz."
             return
         }
         
         guard let context = context else {
-            errorMesage = "Veritabanı bağlantısı yok."
+            errorMessage = "Veritabanı bağlantısı yok."
             return
         }
         
@@ -113,14 +113,14 @@ class AuthViewModel: ObservableObject {
                 KeychainManager.shared.save(key: "userPassword", data: password)
                 
                 isLoggedIn = true
-                errorMesage = ""
+                errorMessage = ""
                 failedAttempts = 0
                 print("Başarıyla giriş yapıldı \(safeEmail)")
             } else {
                 handleFailedAttempts(message: "Şifre yanlış")
             }
         } catch {
-            errorMesage = "Giriş sırasında bir hata oluştu"
+            errorMessage = "Giriş sırasında bir hata oluştu"
         }
     }
     
@@ -129,9 +129,9 @@ class AuthViewModel: ObservableObject {
         failedAttempts += 1
         if failedAttempts >= 5 {
             lockUntil = Date().addingTimeInterval(30)
-            errorMesage = "5 hatalı deneme yaptınız. Lütfen bekleyiniz"
+            errorMessage = "5 hatalı deneme yaptınız. Lütfen bekleyiniz"
         } else {
-            errorMesage = message
+            errorMessage = message
         }
     }
     

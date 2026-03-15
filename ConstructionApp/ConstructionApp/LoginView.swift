@@ -26,8 +26,8 @@ struct LoginView: View {
                     .textFieldStyle(.roundedBorder)
                 
                 // Veri okunan yerlerde $ işareti KULLANILMAZ
-                if !authViewModel.errorMesage.isEmpty {
-                    Text(authViewModel.errorMesage)
+                if !authViewModel.errorMessage.isEmpty {
+                    Text(authViewModel.errorMessage)
                         .foregroundStyle(.red)
                         .font(.caption)
                 }
