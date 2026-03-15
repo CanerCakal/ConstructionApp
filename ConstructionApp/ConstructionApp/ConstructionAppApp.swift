@@ -1,19 +1,15 @@
-//
-//  ConstructionAppApp.swift
-//  ConstructionApp
-//
-//  Created by Caner Çakal on 26.02.2026.
-//
-
 import SwiftUI
 import SwiftData
 
 @main
 struct ConstructionAppApp: App {
+    @StateObject private var authViewModel = AuthViewModel()
+    
     var body: some Scene {
         WindowGroup {
-            RootView()
+            SplashView() // <-- BURAYI DEĞİŞTİRDİK
+                .environmentObject(authViewModel)
+                .modelContainer(for: [User.self, Project.self, Material.self])
         }
-        .modelContainer(for: [Project.self, Material.self, User.self])
     }
 }
