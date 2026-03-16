@@ -45,13 +45,21 @@ struct ProjectDetailView: View {
                     Divider()
                     
                     VStack(alignment: .leading, spacing: 5) {
-                        Text("✨ AI Analizi")
-                            .font(.subheadline)
-                            .bold()
-                            .foregroundColor(.purple)
-                        Text(AIService.shared.analyzeProject(project: project))
+                        HStack {
+                            Text("AI Analizi")
+                                .font(.subheadline)
+                                .bold()
+                                .foregroundColor(.purple)
+                            
+                            if viewModel.isAIAnalyzing {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                            }
+                        }
+                        Text(viewModel.aiAnalysesResult)
                             .font(.caption)
                             .foregroundColor(.secondary)
+                            .italic()
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -226,6 +234,7 @@ struct ProjectDetailView: View {
         .task {
             // Sadece müdüre "İnternetten verileri çek" diyoruz
             await viewModel.loadMarketMaterials()
+            await viewModel.fetcAIAnalysis(for: project)
         }
     }
 }

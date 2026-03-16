@@ -15,6 +15,8 @@ class ProjectDetailViewModel: ObservableObject {
     @Published var selectedMaterial: MarketMaterial?
     @Published var usageRate: String = ""
     @Published var errorMessage: String = ""
+    @Published var aiAnalysesResult: String = "Yapay zeka projeyi analiz ediyor..."
+    @Published var isAIAnalyzing: Bool = true
     
     // MARK: - İNTERNETTEN VERİ ÇEKME
     func loadMarketMaterials() async {
@@ -65,4 +67,25 @@ class ProjectDetailViewModel: ObservableObject {
             try? context.save()
         }
     }
+    
+    func fetcAIAnalysis(for project: Project) {
+        isAIAnalyzing = true
+        aiAnalysesResult = "Yapay zeka projeyi analiz ediyor..."
+        
+        Task {
+            do {
+                let result = try await AIService.shared.analyzeProjectWithAI(project: project)
+                await MainActor.run {
+                    self.aiAnalysesResult = result
+                    self.isAIAnalyzing = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.aiAnalysesResult = "Bağlantı Hatası: Analiz yapılamıyor"
+                    self.isAIAnalyzing = false
+                }
+            }
+        }
+    }
+    
 }
