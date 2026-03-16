@@ -15,8 +15,8 @@ class ProjectDetailViewModel: ObservableObject {
     @Published var selectedMaterial: MarketMaterial?
     @Published var usageRate: String = ""
     @Published var errorMessage: String = ""
-    @Published var aiAnalysesResult: String = "Yapay zeka projeyi analiz ediyor..."
-    @Published var isAIAnalyzing: Bool = true
+    @Published var aiAnalysesResult: String = "Projeye dair profesyonel bir maliyet ve verimlilik analizi almak için butona tıklayın."
+    @Published var isAIAnalyzing: Bool = false
     
     // MARK: - İNTERNETTEN VERİ ÇEKME
     func loadMarketMaterials() async {
